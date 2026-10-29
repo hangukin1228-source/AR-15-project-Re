@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Arena of Ruina-15</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #121212;
+      color: #ffffff;
+    }
+
+    /* 공통 컨테이너 화면 */
+    .screen {
+      display: none;
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      background: linear-gradient(135deg, #1f1c2c, #928dab);
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .screen.active {
+      display: flex;
+    }
+
+    /* 1. 시작 화면 (Main Lobby) */
+    #main-lobby {
+      position: relative;
+    }
+
+    .main-title-box {
+      position: absolute;
+      top: 10%;
+      left: 10%;
+      transform: rotate(-5deg);
+    }
+
+    .main-title {
+      font-size: 3rem;
+      font-weight: 900;
+      color: #000;
+      text-shadow: 2px 2px 0px #fff;
+    }
+
+    .alpha-badge {
+      background: #000;
+      color: #ffcc00;
+      padding: 4px 8px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      display: inline-block;
+      margin-top: 5px;
+      border: 1px solid #ffcc00;
+    }
+
+    .lobby-right-panel {
+      position: absolute;
+      right: 10%;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      width: 260px;
+    }
+
+    .ui-box {
+      background: #fff;
+      color: #000;
+      border: 4px solid #000;
+      padding: 12px;
+      font-weight: bold;
+      text-align: center;
+      box-shadow: 4px 4px 0px rgba(0,0,0,0.8);
+      cursor: pointer;
+      font-size: 1.1rem;
+    }
+
+    .ui-box input {
+      width: 100%;
+      border: none;
+      outline: none;
+      font-size: 1.1rem;
+      text-align: center;
+      font-weight: bold;
+      background: #eee;
+      padding: 5px;
+    }
+
+    .ui-box.play-btn {
+      background: #fff;
+      font-size: 1.5rem;
+      padding: 15px;
+      transition: transform 0.1s;
+    }
+    .ui-box.play-btn:active {
+      transform: translate(2px, 2px);
+      box-shadow: 2px 2px 0px rgba(0,0,0,0.8);
+    }
+
+    /* 크레딧 팝업 */
+    #credit-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7);
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .modal-content {
+      background: #fff;
+      color: #000;
+      border: 4px solid #000;
+      padding: 30px;
+      width: 320px;
+      text-align: center;
+      position: relative;
+      box-shadow: 8px 8px 0px rgba(0,0,0,0.5);
+    }
+    .close-btn {
+      position: absolute;
+      top: 10px; right: 10px;
+      background: #ff4444; color: #fff;
+      border: 2px solid #000;
+      width: 30px; height: 30px;
+      font-weight: bold; cursor: pointer;
+    }
+
+    /* 2. 서브 메뉴 화면 ((1) 화면) */
+    .menu-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      width: 100%;
+      max-width: 600px;
+    }
+
+    .menu-card {
+      background: #fff;
+      color: #000;
+      border: 4px solid #000;
+      padding: 25px;
+      text-align: center;
+      font-size: 1.2rem;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 6px 6px 0px rgba(0,0,0,0.8);
+    }
+    .menu-card:active {
+      transform: translate(3px, 3px);
+      box-shadow: 3px 3px 0px rgba(0,0,0,0.8);
+    }
+
+    .back-btn {
+      position: absolute;
+      top: 20px; left: 20px;
+      background: #fff; color: #000;
+      border: 3px solid #000;
+      padding: 8px 16px; font-weight: bold; cursor: pointer;
+    }
+
+    /* 클래스 선택 바 */
+    .class-select-container {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .class-option {
+      background: #333;
+      border: 3px solid #555;
+      padding: 10px 20px;
+      color: #fff;
+      cursor: pointer;
+      font-weight: bold;
+      border-radius: 8px;
+    }
+    .class-option.selected {
+      border-color: #ffcc00;
+      background: #554a1a;
+    }
+
+    /* 3. 게임 화면 */
+    #game-screen {
+      padding: 0;
+      background: #1e251e;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* 게임 내 HUD 및 조작부 (스케치 반영) */
+    .game-hud {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+      padding: 10px;
+      background: rgba(0,0,0,0.4);
+      border-radius: 8px;
+    }
+
+    .touch-controls {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      right: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      pointer-events: none;
+    }
+
+    .joystick-zone {
+      width: 120px; height: 120px;
+      background: rgba(255, 255, 255, 0.15);
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      border-radius: 50%;
+      position: relative;
+      pointer-events: auto;
+      touch-action: none;
+    }
+    .joystick-knob {
+      width: 50px; height: 50px;
+      background: rgba(255, 204, 0, 0.9);
+      border-radius: 50%;
+      position: absolute;
+      top: 35px; left: 35px;
+    }
+
+    .skill-btns {
+      display: flex;
+      gap: 15px;
+      pointer-events: auto;
+    }
+
+    .action-btn {
+      width: 70px; height: 70px;
+      border-radius: 50%;
+      color: white; font-weight: bold;
+      display: flex; align-items: center; justify-content: center;
+      border: 3px solid rgba(255,255,255,0.7);
+      touch-action: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+    .btn-weak { background: rgba(52, 152, 219, 0.85); }
+    .btn-strong { background: rgba(231, 76, 60, 0.85); }
+    .btn-special { background: rgba(155, 89, 182, 0.85); }
+  </style>
+</head>
+<body>
+
+  <!-- [메인 시작 화면] 스케치 반영 -->
+  <div id="main-lobby" class="screen active">
+    <div class="main-title-box">
+      <div class="main-title">Arena of Ruina-15</div>
+      <div class="alpha-badge">alpha testing version</div>
+    </div>
+
+    <div class="lobby-right-panel">
+      <div class="ui-box">
+        <input type="text" id="player-name-input" placeholder="이름입력 (예: P11)" value="P11" maxlength="10">
+      </div>
+      <div class="ui-box" onclick="openCredit()">credit</div>
+      <div class="ui-box play-btn" onclick="goToMenu()">PLAY</div>
+    </div>
+  </div>
+
+  <!-- 크레딧 모달 -->
+  <div id="credit-modal">
+    <div class="modal-content">
+      <button class="close-btn" onclick="closeCredit()">X</button>
+      <h2>CREDIT</h2>
+      <p style="margin-top: 15px; font-weight: normal;">제작 및 배포: LCB fans</p>
+    </div>
+  </div>
+
+  <!-- [서브 메뉴 화면 (1)] 스케치 반영 -->
+  <div id="sub-menu-screen" class="screen">
+    <button class="back-btn" onclick="goToMain()">← 뒤로</button>
+    
+    <div style="margin-bottom: 25px; text-align: center;">
+      <h2 style="margin-bottom: 10px; color:#ffcc00;">클래스 선택</h2>
+      <div class="class-select-container">
+        <div class="class-option selected" onclick="selectClass('knight', this)">나이트 (HP 120)</div>
+        <div class="class-option" onclick="selectClass('mage', this)">매지션 (HP 100)</div>
+        <div class="class-option" onclick="selectClass('assassin', this)">어살신 (HP 80)</div>
+      </div>
+    </div>
+
+    <div class="menu-grid">
+      <div class="menu-card" onclick="startTraining()">훈련장 (솔로 연습)</div>
+      <div class="menu-card" onclick="alert('방 만들기 기능 준비중입니다!')">방 만들기</div>
+      <div class="menu-card" onclick="alert('방 찾기 기능 준비중입니다!')">방 찾기</div>
+      <div class="menu-card" onclick="alert('준비중입니다')">휴무건설</div>
+    </div>
+  </div>
+
+  <!-- [게임 플레이 화면] 스케치 HUD 및 조작 반영 -->
+  <div id="game-screen" class="screen">
+    <div class="game-hud">
+      <div id="hud-mode-info" style="font-weight: bold; font-size: 0.9rem;">모드: 훈련장 | 클래스: 나이트</div>
+      <div id="hud-timer" style="background:#000; padding:4px 10px; border-radius:4px; color:#ffcc00; font-weight:bold;">⏰ 3:00</div>
+      <div id="hud-score" style="font-size: 0.9rem;">처치: 0 | 사망: 0</div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="touch-controls">
+      <div class="joystick-zone" id="joystickZone">
+        <div class="joystick-knob" id="joystickKnob"></div>
+      </div>
+      <div class="skill-btns">
+        <div class="action-btn btn-weak" onclick="doAttack('weak')">약공격</div>
+        <div class="action-btn btn-strong" onclick="doAttack('strong')">강공격</div>
+        <div class="action-btn btn-special" onclick="doAttack('special')">특수기</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 상태 변수
+    let playerName = 'P11';
+    let selectedClass = 'knight';
+    
+    // 클래스별 기획 스펙 설정
+    const classSpecs = {
+      knight: { name: '나이트', hp: 120, speed: 3.2, color: '#4a90e2' },
+      mage: { name: '매지션', hp: 100, speed: 3.5, color: '#9013fe' },
+      assassin: { name: '어살신', hp: 80, speed: 4.2, color: '#e67e22' }
+    };
+
+    // 화면 전환 함수들
+    function openCredit() { document.getElementById('credit-modal').style.display = 'flex'; }
+    function closeCredit() { document.getElementById('credit-modal').style.display = 'none'; }
+    
+    function goToMain() {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById('main-lobby').classList.add('active');
+    }
+
+    function goToMenu() {
+      const nameInput = document.getElementById('player-name-input').value.trim();
+      if (nameInput) playerName = nameInput;
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById('sub-menu-screen').classList.add('active');
+    }
+
+    function selectClass(cls, el) {
+      selectedClass = cls;
+      document.querySelectorAll('.class-option').forEach(opt => opt.classList.remove('selected'));
+      el.classList.add('selected');
+    }
+
+    // 게임 시작 (훈련장 모드)
+    let canvas, ctx;
+    let player = {};
+    let effects = [];
+    let joystickActive = false;
+    let touchOrigin = { x: 0, y: 0 };
+    let keys = {};
+
+    function startTraining() {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById('game-screen').classList.add('active');
+
+      const spec = classSpecs[selectedClass];
+      document.getElementById('hud-mode-info').innerText = `플레이어: ${playerName} | 모드: 훈련장 | 클래스: ${spec.name}`;
+
+      canvas = document.getElementById('gameCanvas');
+      ctx = canvas.getContext('2d');
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+
+      player = {
+        x: canvas.width / 2,
+        y: canvas.height / 2,
+        radius: 20,
+        hp: spec.hp,
+        maxHp: spec.hp,
+        speed: spec.speed,
+        color: spec.color,
+        vx: 0,
+        vy: 0,
+        isStealth: false,
+        shield: 0
+      };
+
+      setupGameControls();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+
+    // 조작 및 스킬 시스템 설정
+    function setupGameControls() {
+      window.addEventListener('keydown', e => keys[e.code] = true);
+      window.addEventListener('keyup', e => keys[e.code] = false);
+
+      const zone = document.getElementById('joystickZone');
+      const knob = document.getElementById('joystickKnob');
+
+      zone.addEventListener('touchstart', e => {
+        joystickActive = true;
+        const touch = e.touches[0];
+        const rect = zone.getBoundingClientRect();
+        touchOrigin = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+        updateJoystick(touch);
+      });
+
+      zone.addEventListener('touchmove', e => {
+        if (!joystickActive) return;
+        updateJoystick(e.touches[0]);
+      });
+
+      const resetJoystick = () => {
+        joystickActive = false;
+        knob.style.left = '35px';
+        knob.style.top = '35px';
+        player.vx = 0;
+        player.vy = 0;
+      };
+
+      zone.addEventListener('touchend', resetJoystick);
+      zone.addEventListener('touchcancel', resetJoystick);
+
+      function updateJoystick(touch) {
+        const dx = touch.clientX - touchOrigin.x;
+        const dy = touch.clientY - touchOrigin.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const maxRadius = 40;
+        const angle = Math.atan2(dy, dx);
+        const moveDist = Math.min(dist, maxRadius);
+
+        knob.style.left = (35 + Math.cos(angle) * moveDist) + 'px';
+        knob.style.top = (35 + Math.sin(angle) * moveDist) + 'px';
+
+        player.vx = Math.cos(angle) * player.speed * (moveDist / maxRadius);
+        player.vy = Math.sin(angle) * player.speed * (moveDist / maxRadius);
+      }
+    }
+
+    // 기획서에 명시된 공격 방식 구현
+    function doAttack(type) {
+      if (selectedClass === 'knight') {
+        if (type === 'weak') {
+          effects.push({ type: 'slash', x: player.x + 30, y: player.y, radius: 25, life: 15, color: '#4a90e2' });
+        } else if (type === 'strong') {
+          effects.push({ type: 'slash', x: player.x, y: player.y, radius: 50, life: 20, color: '#ffcc00' });
+        } else if (type === 'special') {
+          player.shield = 20; // 보호막 20 생성
+          alert('나이트 특수기: 말(버프) 발동! 이동속도 증가 및 보호막 20 생성');
+        }
+      } else if (selectedClass === 'mage') {
+        if (type === 'weak') {
+          effects.push({ type: 'bullet', x: player.x, y: player.y, vx: 7, vy: 0, radius: 6, color: '#9013fe' });
+        } else if (type === 'strong') {
+          effects.push({ type: 'boom', x: player.x + 80, y: player.y, radius: 40, life: 20, color: '#ff4444' });
+        } else if (type === 'special') {
+          alert('매지션 특수기: 스턴(공격) 부채꼴 범위 시전!');
+        }
+      } else if (selectedClass === 'assassin') {
+        if (type === 'weak') {
+          effects.push({ type: 'bullet', x: player.x, y: player.y, vx: 10, vy: 0, radius: 4, color: '#e67e22' });
+        } else if (type === 'strong') {
+          effects.push({ type: 'bullet', x: player.x, y: player.y, vx: 9, vy: -2, radius: 4, color: '#e67e22' });
+          effects.push({ type: 'bullet', x: player.x, y: player.y, vx: 9, vy: 0, radius: 4, color: '#e67e22' });
+          effects.push({ type: 'bullet', x: player.x, y: player.y, vx: 9, vy: 2, radius: 4, color: '#e67e22' });
+        } else if (type === 'special') {
+          player.isStealth = true;
+          setTimeout(() => { player.isStealth = false; }, 10000); // 10초간 은신
+          alert('어살신 특수기: 은신(버프) 발동! (10초 투명)');
+        }
+      }
+    }
+
+    function gameLoop() {
+      update();
+      render();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function update() {
+      if (!joystickActive) {
+        player.vx = 0; player.vy = 0;
+        if (keys['KeyW'] || keys['ArrowUp']) player.vy = -player.speed;
+        if (keys['KeyS'] || keys['ArrowDown']) player.vy = player.speed;
+        if (keys['KeyA'] || keys['ArrowLeft']) player.vx = -player.speed;
+        if (keys['KeyD'] || keys['ArrowRight']) player.vx = player.speed;
+      }
+
+      player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x + player.vx));
+      player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y + player.vy));
+
+      // 효과/투사체 업데이트
+      effects.forEach((eff, i) => {
+        if (eff.type === 'bullet') {
+          eff.x += eff.vx;
+          if (eff.x > canvas.width) effects.splice(i, 1);
+        } else {
+          eff.life--;
+          if (eff.life <= 0) effects.splice(i, 1);
+        }
+      });
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 격자 배경
+      ctx.strokeStyle = '#2a352a';
+      ctx.lineWidth = 1;
+      const gridSize = 40;
+      for (let x = 0; x < canvas.width; x += gridSize) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+      }
+      for (let y = 0; y < canvas.height; y += gridSize) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+      }
+
+      // 이펙트 및 투사체 렌더링
+      effects.forEach(eff => {
+        ctx.beginPath();
+        ctx.arc(eff.x, eff.y, eff.radius || 6, 0, Math.PI * 2);
+        ctx.fillStyle = eff.color;
+        ctx.fill();
+      });
+
+      // 플레이어 렌더링 (은신 상태일 때 투명도 적용)
+      ctx.save();
+      if (player.isStealth) ctx.globalAlpha = 0.3;
+
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+      ctx.fillStyle = player.color;
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+      ctx.restore();
+
+      // 이름 및 체력바
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(playerName + (player.isStealth ? ' (은신)' : ''), player.x, player.y - player.radius - 14);
+
+      const barW = 44, barH = 6;
+      ctx.fillStyle = '#ff0000';
+      ctx.fillRect(player.x - barW / 2, player.y - player.radius - 8, barW, barH);
+      ctx.fillStyle = '#00ff00';
+      ctx.fillRect(player.x - barW / 2, player.y - player.radius - 8, barW * (player.hp / player.maxHp), barH);
+
+      if (player.shield > 0) {
+        ctx.strokeStyle = '#00ffff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, player.radius + 4, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+  </script>
+</body>
+</html>
